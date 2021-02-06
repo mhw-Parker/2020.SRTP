@@ -9,6 +9,8 @@
 #include <QDebug>
 #include <string>
 #include <stdio.h>
+#include <QVector>
+#include <vector>
 
 using namespace std;
 
@@ -21,10 +23,14 @@ class ExcelRead
 public:
       ExcelRead();
 
-      bool readExcelData(QString& file);
+      bool datarange_init(QString& filename, int& totalRow, int& totalCol);
+
+      bool readExcelData(QString& filename, vector<vector<float> >Data);
       float Data(int row, int col);
 
 public:
+//      int totalRow; //总行
+//      int totalCol; //总列
 
 
 private:
@@ -34,6 +40,11 @@ private:
       QAxObject* worksheets;                       //文件中所有<Sheet>表页
       QAxObject* worksheet;                        //存储第n个sheet对象
       QAxObject* usedrange;                        //存储当前sheet的数据对象
+
+private:
+      int iRow;
+      int iCol;
+
 
 
 };
