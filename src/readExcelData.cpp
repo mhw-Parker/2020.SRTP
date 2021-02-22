@@ -27,14 +27,14 @@ bool ExcelRead::datarange_init(QString &filename, int& totalRow, int& totalCol)
 
     iRow = usedrange->property("Row").toInt();             					//数据起始行数和列数(可以解决不规则Excel)
     iCol = usedrange->property("Column").toInt();
-
+    cout<<"start_row= "<<iRow<<"\t start_col="<<iCol<<endl;
     totalRow = usedrange->querySubObject("Rows")->property("Count").toInt();  //获取数据总行数
     totalCol = usedrange->querySubObject("Columns")->property("Count").toInt();
     //
     return true;
 }
 
-bool ExcelRead::readExcelData(QString& filename, vector<vector<float> >Data)
+bool ExcelRead::readExcelData(QString& filename, vector<vector<float> >xlsData)
 {
     int row = 0;
     int col = 0;
@@ -42,16 +42,19 @@ bool ExcelRead::readExcelData(QString& filename, vector<vector<float> >Data)
         cout<<"datarange_init successed !"<<endl;
     else
         return false;
-    double time_start = (double)clock();
+    //double time_start = (double)clock();
+    QTime startTime = QTime::currentTime();
     // 逐行读取主表
     for (int i = iRow+1; i <= row; i++)
     {
         for(int j = iCol; j <= col; j++)
         {
             QString data = worksheet->querySubObject("Cells(int,int)",i,j)->dynamicCall(("Value2()")).value<QString>();
-            Data[i][j] = data.toFloat();
+            //cout<<i<<"  "<<j;
+            xlsData[i][j] = data.toFloat();
             string strdata = data.toStdString();
-            printf("%s\t",strdata.c_str());
+            //printf("%s\t",strdata.c_str());
+            cout<<xlsData[i][j]<<"\t";
             //qDebug()<< data;
         }
         cout<<endl;
@@ -62,8 +65,11 @@ bool ExcelRead::readExcelData(QString& filename, vector<vector<float> >Data)
 
 //        qDebug() << number << name << id << desc << endl;//打印验证数据
     }
-    double time_end = (double)clock();
-    cout<<"read data finished, it takes: "<<(time_end - time_start)/1000<<"s"<<endl;
+    //double time_end = (double)clock();
+    QTime stopTime = QTime::currentTime();
+    int elapsed = startTime.msecsTo(stopTime);
+    //cout<<"read data finished, it takes: "<<(time_end - time_start)/1000<<"s"<<endl;
+    qDebug()<<"QTime.currentTime ="<<elapsed<<"ms";
     //return saveCloseQuit();
     return 1;
 }
