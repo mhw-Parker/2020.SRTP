@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <QVector>
 #include <vector>
+#include <QTime>
+#include <math.h>
 
 using namespace std;
 
