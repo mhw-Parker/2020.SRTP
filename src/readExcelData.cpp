@@ -34,6 +34,17 @@ bool ExcelRead::datarange_init(QString &filename, int& totalRow, int& totalCol)
     return true;
 }
 
+int ExcelRead::getRowRange(QString &filename)
+{
+    int lastrow;
+    int lastcol;
+    if(datarange_init(filename,lastrow,lastcol))
+    {
+        return lastrow;
+    }
+    else return 0;
+}
+
 bool ExcelRead::readExcelData(QString& filename, vector<vector<float> >xlsData)
 {
     int row = 0;
