@@ -26,6 +26,7 @@ public:
       ExcelRead();
 
       bool datarange_init(QString& filename, int& totalRow, int& totalCol);
+      int getRowRange(QString& filename);                                     //获取excel的尾行
 
       bool readExcelData(QString& filename, vector<vector<float> >Data);
       float Data(int row, int col);
