@@ -13,8 +13,14 @@
 #include <vector>
 #include <QTime>
 #include <math.h>
+#include <QDir>
+
+#include<Eigen/Dense>          //尝试用c++的eigen库加快运行速度
+#include<Eigen/Geometry>
+#include <Eigen/Core>
 
 using namespace std;
+using namespace Eigen;
 
 class ExcelRead
 {
@@ -28,7 +34,7 @@ public:
       bool datarange_init(QString& filename, int& totalRow, int& totalCol);
       int getRowRange(QString& filename);                                     //获取excel的尾行
 
-      bool readExcelData(QString& filename, vector<vector<float> >Data);
+      bool readExcelData(QString& filename,MatrixXf& m);
       float Data(int row, int col);
 
 public:
