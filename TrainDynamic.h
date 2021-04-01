@@ -13,15 +13,15 @@ class Train
 public:
     Train();
 
-    void filepath();   //导入的excel文件名
+    void filepath();          //导入的excel文件名
     bool data_init();
 
-    void train_basic_info();
-    bool Ramp_init();  //坡道参数初始化，建议直接导入matlab处理后的表格
-    bool Curve_init(); //曲线参数初始化
+    void train_basic_info(); //计算列车的一些基本参数
+    bool Ramp_init();        //只是用于判断表格数据是否满足起点和终点条件
+    bool Curve_init();       //该函数已废弃，直接导入matlab的数据
 
-    void PID_init();
-    void PID(); //速度跟踪主函数
+    void PID_init();         //速度PID的数组长度初始化
+    void PID();              //速度跟踪主函数
 
     VectorXf Cal_TrainResistance(VectorXf CurX);
     VectorXf cum_sum(VectorXf vec);
@@ -123,6 +123,7 @@ private:
         VectorXf mid_pra_2;//用于取Efficiency_PUD的绝对值
         VectorXf mid_pra_3;
         
+        float p;
         bool judge_1;
         float* mid_arr_1;
         float* mid_arr_2;

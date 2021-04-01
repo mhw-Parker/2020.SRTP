@@ -28,6 +28,7 @@ bool Train::data_init()
         return false;
     }
     else qDebug() << "文件路径均存在";
+    //将表中数据存进 Eigen 库的 MatrixXf 矩阵中
     ExcelRead test;
     test.readExcelData(Car_Parameter_Path,TrainData_);
     test.readExcelData(OptimalData_Path,OptimalData);
@@ -35,10 +36,13 @@ bool Train::data_init()
     test.readExcelData(CrvData_Path,CrvData_);
     qDebug()<<"The target array has been build !";
 
+    //得出每个表的行数，用于PID矩阵数组长度初始化（.size()为读取全表的元素个数，所以这里取出表中第一列读取行数）
     TrainNumber = TrainData_.col(0).size();
     GradientNumber = GrdData_.col(0).size();
     CurveNumber = CrvData_.col(0).size();
     Tmp_SoverNum = OptimalData.col(0).size();
+    //
+
     qDebug() << "TrainNumber = "<<TrainNumber;
     qDebug() << "GradientNumber ="<<GradientNumber;
     qDebug() << "CurveNumber = "<<CurveNumber;
@@ -78,14 +82,14 @@ void Train::train_basic_info()    //获取列车基本的重量及长度信息�
 
 bool Train::Ramp_init()
 {
-    ExcelRead Grd;
-    int GrdData_Size_ = GrdData_.size();
+    GrdData_.col(0) = GrdData_.col(0) * 1000;
+    GrdData_.col(1) = GrdData_.col(1) * 1000;
     //int lastrow = Grd.getRowRange(Grd_data_Path);
-    if(GrdData_(1,1) > TrainPos_Start_)             //数据实际位置可能需要修改
+    if(GrdData_(1,0) > TrainPos_Start_)             //根据数据实际位置修改
     {
         qDebug()<<"Error: [train starting point] smaller than first Grade.";
     }
-    if(GrdData_(GrdData_Size_,2) < TrainPos_End_)
+    if(GrdData_(GradientNumber-1,1) < TrainPos_End_)
     {
         qDebug()<<"Error: [train finishing point] bigger that last Grade.";
     }
@@ -111,12 +115,13 @@ void Train::PID()
     Tmp_Step_V = selectData.col(1);
     //cout << Tmp_Step_X; //可以正常输出，前两步数据读入，没有问题
 
-    PID_init(); //初始化PID所需要的数组长度
+    //初始化PID所需要的数组长度
+    PID_init();
 
-    Tmp_W_total = Cal_TrainResistance(Tmp_Step_X); //此处将原程序段封装成了一个新函数
-    //
-    //
-    //Tmp_W_total = Tmp_W_total.adjoint();
+    //计算列车运行阻力，此处将原程序段封装成了一个新函数
+    Tmp_W_total = Cal_TrainResistance(Tmp_Step_X);
+    //Tmp_W_total = Tmp_W_total.adjoint();//不用转置了，Vector默认列向量
+
     Pos = Tmp_Step_X * 1000;
     Speed = Tmp_Step_V / 3.6;
 
@@ -148,10 +153,12 @@ void Train::PID()
     QTime startTime = QTime::currentTime();
     for(int i=1;i <= Tmp_SoverNum-2;i++)
     {
-        Controlspeed(i+1) = pow( (Controlspeed(i)*Controlspeed(i) + 2*ControlAcc(i)*(Pos(i+1)-Pos(i))) , 0.5 );
+        p = Controlspeed(i)*Controlspeed(i) + 2*ControlAcc(i)*(Pos(i+1)-Pos(i));
+        Controlspeed(i+1) = pow( p , 0.5 );
         Controlspeed = Controlspeed.real(); //取复数实部
 
-        ControlDeltaspeed(i+1) =Speed(i+1)-Controlspeed(i+1);
+        ControlPos(i+1) = Pos(i+1);
+        ControlDeltaspeed(i+1) = Speed(i+1)-Controlspeed(i+1);
         ControlAcc(i+1) = ControlDeltaspeed(i+1);
         ControlTime(i+1) = 2*(Pos(i+1)-Pos(i))/(Controlspeed(i)+Controlspeed(i+1));
 
@@ -162,7 +169,7 @@ void Train::PID()
         judge_1 = (Controlspeed(i+1)*3.6>=5)&&(Controlspeed(i+1)*3.6<105);
 
         TrainBrakeForce(i+1) = (-1)*(60*Controlspeed(i+1)*3.6)*(Controlspeed(i+1)*3.6<5) +
-                               (-1)*(-0.3*Controlspeed(i+1)*3.6+301.5)*judge_1 +
+                               (-1)*(-0.3*Controlspeed(i+1)*3.6+301.5)*(int)judge_1 +
                                (-1)*28500/3.6/Controlspeed(i+1)*(Controlspeed(i+1)*3.6>=105);
 
         //
@@ -502,6 +509,7 @@ VectorXf Train::Cal_TrainResistance(VectorXf CurX)
             else
                 Train_CoM_Grd(i) = 0;
         }
+        //cout << TrainData_.col(1).adjoint() << endl;
         Wg = 9.81*TrainData_.col(1).adjoint()*Train_CoM_Grd;
         Wg = Wg / 1000;
 
@@ -523,7 +531,7 @@ VectorXf Train::Cal_TrainResistance(VectorXf CurX)
         Wc = Wc / 1000;
         //Total
         tmp_total_w[j] = Wg + Wc;
-        qDebug()<<tmp_total_w[j];
+        //qDebug()<<tmp_total_w[j];
 
     }
     return tmp_total_w;
@@ -534,6 +542,7 @@ void Train::testmain()
     filepath();
     data_init();
     train_basic_info();
+    Ramp_init();
     PID();
     cout << Actmotornum_PUD;
     //VectorXf vec = TrainData_.col(1);//vector为列向量
