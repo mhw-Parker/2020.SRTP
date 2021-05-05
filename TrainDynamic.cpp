@@ -1,5 +1,6 @@
 #include"TrainDynamic.h"
-
+//#include "graphic/TableWidget.h"
+//#include "graphic/CustomTable.h"
 
 Train::Train()
 {
@@ -11,7 +12,7 @@ void Train::filepath()
     Car_Parameter_Path = QDir::currentPath() + "/车辆参数.xlsx";
     Grd_data_Path = QDir::currentPath() + "/武广上行坡道_绝对里程_带坡长.xlsx";
     CrvData_Path = QDir::currentPath() + "/Curve_init.xlsx";
-    OptimalData_Path = QDir::currentPath() + "/2.xlsx";
+    OptimalData_Path = QDir::currentPath() + "/3.xlsx";
     cout<<"filepath init successed !"<<endl;
 }
 
@@ -29,11 +30,11 @@ bool Train::data_init()
     }
     else qDebug() << "文件路径均存在";
     //将表中数据存进 Eigen 库的 MatrixXf 矩阵中
-    ExcelRead test;
-    test.readExcelData(Car_Parameter_Path,TrainData_);
-    test.readExcelData(OptimalData_Path,OptimalData);
-    test.readExcelData(Grd_data_Path,GrdData_);
-    test.readExcelData(CrvData_Path,CrvData_);
+    ExcelRead text;
+    text.readExcelData(Car_Parameter_Path,TrainData_);
+    text.readExcelData(OptimalData_Path,OptimalData);
+    text.readExcelData(Grd_data_Path,GrdData_);
+    text.readExcelData(CrvData_Path,CrvData_);
     qDebug()<<"The target array has been build !";
 
     //得出每个表的行数，用于PID矩阵数组长度初始化（.size()为读取全表的元素个数，所以这里取出表中第一列读取行数）
@@ -71,7 +72,7 @@ bool Train::data_init()
 //    }
 }
 
-void Train::train_basic_info()    //获取列车基本的重量及长度信息，或许可以考虑写死提升运算速度
+void Train::train_basic_info()
 {
     TrainTotalWeight = TrainData_.col(1).sum();
     TrainTotalLength = TrainData_.col(0).sum();
@@ -148,7 +149,7 @@ void Train::PID()
     Energy_Cosum_PUD(1) = 0;
     Energy_Cosum_PUD_Total= 0;
     a = 0;
-    BasicRunningForce(1) = 9.81*(0.42+0.0018*Controlspeed(1)*3.6+0.000132*Controlspeed(1)*Controlspeed(1)*3.6*3.6)*Train_TotalWeight_/1000;
+    BasicRunningForce(1) = 9.81*(0.42+0.0018*Controlspeed(1)*3.6+0.000132*Controlspeed(1)*Controlspeed(1)*3.6*3.6)*TrainTotalWeight/1000;
 
     QTime startTime = QTime::currentTime();
     for(int i=1;i <= Tmp_SoverNum-2;i++)
@@ -158,48 +159,57 @@ void Train::PID()
         Controlspeed = Controlspeed.real(); //取复数实部
 
         ControlPos(i+1) = Pos(i+1);
-        ControlDeltaspeed(i+1) = Speed(i+1)-Controlspeed(i+1);
-        ControlAcc(i+1) = ControlDeltaspeed(i+1);
+
+        ControlDeltaspeed(i+1) = Speed(i+1) - Controlspeed(i+1);
+
+        //PID三个权重
+        ControlAcc(i+1) = 1 * ControlDeltaspeed(i+1) + 0 * ControlDeltaspeed.sum() + 0 * (ControlDeltaspeed(i+1) - ControlDeltaspeed(i));
+        //cout << endl << ControlAcc(i+1) << endl;
         ControlTime(i+1) = 2*(Pos(i+1)-Pos(i))/(Controlspeed(i)+Controlspeed(i+1));
 
-        BasicRunningForce(i+1) = 9.81*(0.42+0.0018*Controlspeed(i+1)*3.6+0.000132*Controlspeed(i+1)*Controlspeed(i+1)*3.6*3.6)*Train_TotalWeight_/1000;
-        ControlForce(i+1) = TrainTotalWeight*ControlAcc(i+1)+BasicRunningForce(i+1)+Tmp_W_total(i+1);
-        TrainTractiveForce(i+1) = (-0.2*Controlspeed(i+1)*3.6+259.5)*(Controlspeed(i+1)*3.6<150) + 34500/3.6/ Controlspeed(i+1)*(Controlspeed(i+1)*3.6>=150);
+        BasicRunningForce(i+1) = 9.81*(0.42+0.0018*Controlspeed(i+1)*3.6+0.000132*Controlspeed(i+1)*Controlspeed(i+1)*3.6*3.6)*TrainTotalWeight/1000;
 
-        judge_1 = (Controlspeed(i+1)*3.6>=5)&&(Controlspeed(i+1)*3.6<105);
+        ControlForce(i+1) = TrainTotalWeight * ControlAcc(i+1) + BasicRunningForce(i+1) + Tmp_W_total(i+1);
 
-        TrainBrakeForce(i+1) = (-1)*(60*Controlspeed(i+1)*3.6)*(Controlspeed(i+1)*3.6<5) +
-                               (-1)*(-0.3*Controlspeed(i+1)*3.6+301.5)*(int)judge_1 +
-                               (-1)*28500/3.6/Controlspeed(i+1)*(Controlspeed(i+1)*3.6>=105);
+        TrainTractiveForce(i+1) = (-0.2*Controlspeed(i+1)*3.6+259.5)*(Controlspeed(i+1)*3.6<150) +
+                                  34500/3.6/Controlspeed(i+1)*(int)(Controlspeed(i+1)*3.6>=150);
+
+        TrainBrakeForce(i+1) = (-1) * (60*Controlspeed(i+1)*3.6) * (int)( Controlspeed(i+1)*3.6<5 ) +
+                               (-1) * (-0.3*Controlspeed(i+1)*3.6+301.5) * (int)( (Controlspeed(i+1)*3.6>=5)&&(Controlspeed(i+1)*3.6<105) ) +
+                               (-1) * 28500/3.6/Controlspeed(i+1) * (int)( Controlspeed(i+1)*3.6>=105 ) ;
 
         //
         if(ControlForce(i+1) > TrainTractiveForce(i+1))
         {
             ControlForce(i+1) = TrainTractiveForce(i+1);
-            ControlAcc(i+1) = (ControlForce(i+1) - BasicRunningForce(i+1) - Tmp_W_total(i+1))/Train_TotalWeight_;
+            ControlAcc(i+1) = ( ControlForce(i+1) - BasicRunningForce(i+1) - Tmp_W_total(i+1) ) / TrainTotalWeight;
+            //cout << ControlAcc(i+1) << endl;
         }
-        ControlPower(i+1) = ControlForce(i+1)*Controlspeed(i+1);
+        ControlPower(i+1) = ControlForce(i+1) * Controlspeed(i+1);
 
         //
         if(ControlForce(i+1) <= TrainAirBrakeForce)
         {
             ControlForce(i+1) = TrainAirBrakeForce;
             ControlPower(i+1) = TrainBrakeForce(i+1)*Controlspeed(i+1);
-            ControlAcc(i+1) = (ControlForce(i+1) - BasicRunningForce(i+1) - Tmp_W_total(i+1))/Train_TotalWeight_;
+            ControlAcc(i+1) = (ControlForce(i+1) - BasicRunningForce(i+1) - Tmp_W_total(i+1)) / TrainTotalWeight;
+            //cout << ControlAcc(i+1) << endl;
         }
         else if(ControlForce(i+1)<=TrainBrakeForce(i+1) && ControlForce(i+1)>TrainAirBrakeForce)
         {
             ControlPower(i+1) = TrainBrakeForce(i+1)*Controlspeed(i+1);
         }
 
-        //动力投切时
-        mid_arr_1 = PowerDistribution(ControlForce(i+1),Controlspeed(i+1));
-        PlossIM_PD(i+1) = mid_arr_1[0];
-        Actmotornum_PD(i+1) = mid_arr_1[1];
+        /***********动力投切时**********/
+//        PowerDistribution(ControlForce(i+1), Controlspeed(i+1), PlossIM_PD(i+1), Actmotornum_PD(i+1));
+        mid_arr_PD = PowerDistribution(ControlForce(i+1), Controlspeed(i+1));
+        //cout << mid_arr_PD[0] << "   " << mid_arr_PD[1] << endl;
+        PlossIM_PD(i+1) = mid_arr_PD[0];
+        Actmotornum_PD(i+1) = mid_arr_PD[1];
         if(ControlPower(i+1) >= 60)
         {
-            Efficiency_PD(i+1) = ControlPower(i+1)/(PlossIM_PD(i+1)+ControlPower(i+1));
-            Energy_Cosum_PD_Total = Energy_Cosum_PD_Total + (PlossIM_PD(i+1)+ControlPower(i+1))*ControlTime(i+1)/3600.0;
+            Efficiency_PD(i+1) = ControlPower(i+1) / (PlossIM_PD(i+1)+ControlPower(i+1));
+            Energy_Cosum_PD_Total = Energy_Cosum_PD_Total + (PlossIM_PD(i+1)+ControlPower(i+1)) * ControlTime(i+1) / 3600.0;
             Energy_Cosum_PD(i+1) = Energy_Cosum_PD_Total;
         }
         else if(ControlPower(i+1) <= -60)
@@ -211,7 +221,7 @@ void Train::PID()
                 Efficiency_PD(i+1) = 0;
             }
             else
-                Efficiency_PD(i+1) = -(-ControlPower(i+1)-PlossIM_PD(i+1))/((-1)*ControlPower(i+1));
+                Efficiency_PD(i+1) = -(-ControlPower(i+1)-PlossIM_PD(i+1)) / ((-1)*ControlPower(i+1));
         }
         else
         {
@@ -223,14 +233,17 @@ void Train::PID()
         mid_pra_2 = Efficiency_PD.cwiseAbs();
         Effi_PD_Ave = mid_pra_2.sum() / mid_pra_2.size();//求动力未分配后平均效率,应该写循环外面?
         //Effi_PUD_Ave = mean( fabs(Efficiency_PUD) );
+        /********************************/
 
-        //未动力投切时
-        mid_arr_2 = PowerUnDistribution(ControlForce(i+1),Controlspeed(i+1));
-        PlossIM_PUD(i+1) = mid_arr_2[0];
-        Actmotornum_PUD(i+1) = mid_arr_2[1];
+        /**********无动力投切时**********/
+//        PowerUnDistribution(ControlForce(i+1), Controlspeed(i+1), PlossIM_PUD(i+1), Actmotornum_PUD(i+1));
+        mid_arr_PUD = PowerUnDistribution(ControlForce(i+1), Controlspeed(i+1));
+        //cout << mid_arr_PUD[0] << "   " << mid_arr_PUD[1] << endl;
+        PlossIM_PUD(i+1) = mid_arr_PUD[0];
+        Actmotornum_PUD(i+1) = mid_arr_PUD[1];
         if(ControlPower(i+1) >= 60)
         {
-            Efficiency_PUD(i+1) = ControlPower(i+1)/(PlossIM_PUD(i+1)+ControlPower(i+1));
+            Efficiency_PUD(i+1) = ControlPower(i+1) / (PlossIM_PUD(i+1)+ControlPower(i+1));
             Energy_Cosum_PUD_Total = Energy_Cosum_PUD_Total + (PlossIM_PUD(i+1)+ControlPower(i+1))*ControlTime(i+1)/3600.0;
             Energy_Cosum_PUD(i+1) = Energy_Cosum_PUD_Total;
         }
@@ -260,7 +273,9 @@ void Train::PID()
 
     QTime stopTime = QTime::currentTime();
     int elapsed = startTime.msecsTo(stopTime);
-    qDebug() << elapsed <<" ms";
+
+    qDebug() << "PID finished !" ;
+    qDebug() << "Time = " << elapsed <<" ms";
 }
 
 void Train::PID_init()
@@ -276,8 +291,10 @@ void Train::PID_init()
     ControlForce = VectorXf::Zero(Tmp_SoverNum);
     ControlTime = VectorXf::Zero(Tmp_SoverNum);
     ControlPower = VectorXf::Zero(Tmp_SoverNum);
+
     TrainTractiveForce = VectorXf::Zero(Tmp_SoverNum);
     TrainBrakeForce = VectorXf::Zero(Tmp_SoverNum);
+
     PlossIM_PD = VectorXf::Zero(Tmp_SoverNum);
     PlossIM_PUD = VectorXf::Zero(Tmp_SoverNum);
 
@@ -291,19 +308,37 @@ void Train::PID_init()
     Energy_Cosum_PUD = VectorXf::Zero(Tmp_SoverNum);
 
     BasicRunningForce = VectorXf::Zero(Tmp_SoverNum);
+
 }
 
-float* Train::PowerUnDistribution(float F, float v) //16个电机一起运行
+void Train::Pra_clear()
 {
-    float* array = new float[2];
+    Pa = VectorXf::Zero(17);
+    wa = VectorXf::Zero(17);
+    Pcu_a = VectorXf::Zero(17);
+    Pcore_a = VectorXf::Zero(17);
+    Pmech_a = VectorXf::Zero(17);
+    Padd_a = VectorXf::Zero(17);
+    PlossIM_Total = VectorXf::Zero(17);
+    num = 16;
+    P_min = 100000;
+}
+
+//void Train::PowerUnDistribution(float F, float v, float &Ploss, float &ActormotorNum) //16个电机一起运行
+float* Train::PowerUnDistribution(float F, float v)
+{
+//    float* array1 = new float[2];
+    static float array1[2];
+    Pra_clear();
     TractionPower = F*v;
     IMSpeed = v*3.6*1000*2.517/60/PI/0.85;
-    for(int i=16;i>=16;i=i-2)             //架控型
+    for(int i=16 ; i>=16 ; i=i-2)             //架控型
     {
-        Pa[i] = fabs(TractionPower/i);
+        int P_evg = fabs(TractionPower/(float)i);
+        Pa[i] = P_evg;
         if(Pa[i] > Pmax)                //若跟踪功率大于满功
         {
-            PlossIM_Total[i] = 0 ; //超出PMAX时，损耗究竟是定义0还是无穷大
+            PlossIM_Total[i] = Infinity ; //超出PMAX时，损耗究竟是定义0还是无穷大
             continue;
         }
         wa[i] = IMSpeed;
@@ -322,73 +357,79 @@ float* Train::PowerUnDistribution(float F, float v) //16个电机一起运行
             Padd_a[i] = Padd_r;
         }
 
-        PlossIM_Total[i] =  i*(Pcu_a[i] + Pcore_a[i] + Pmech_a[i] + Padd_a[i]); //电机总损耗
+        PlossIM_Total[i] =  i * (Pcu_a[i] + Pcore_a[i] + Pmech_a[i] + Padd_a[i]); //电机总损耗
 
-        if(PlossIM_Total[i]<P_min)
+        if(PlossIM_Total[i] < P_min)
         {
             P_min = PlossIM_Total[i];
             num = i;
         }
     }
 
+//    Ploss = P_min;
+//    ActormotorNum = num;
     PlossIM_sun = P_min;
     Actmotor_num = num;
-    array[0] = PlossIM_sun;
-    array[1] = Actmotor_num;
-    
-    return array;
+
+    array1[0] = PlossIM_sun;
+    array1[1] = Actmotor_num;
+    return array1;
 }
 
-float *Train::PowerDistribution(float F, float v)      //初代动力投切判断方案，阶梯递减
+//初代动力投切判断方案，阶梯递减
+//void Train::PowerDistribution(float F, float v, float &Ploss, float &ActormotorNum)
+float* Train::PowerDistribution(float F, float v)
 {
-    float *array = new float[2];
+    static float array2[2];
+    Pra_clear();
     TractionPower = F*v;
     IMSpeed = v*3.6*1000*2.517/60/PI/0.85;
-
-    for(int i=16;i>=0;i=i-2)             //架控型
+    for(int i=16 ; i>=2 ; i=i-2)             //架控型
     {
-        Pa[i] = fabs(TractionPower/i);
+        Pa[i] = fabs(TractionPower/(float)i);
         if(Pa[i] > Pmax)                //若跟踪功率大于满功
         {
-            PlossIM_Total[i] = 0 ;
+            PlossIM_Total[i] = Infinity ;
             continue;
         }
         wa[i] = IMSpeed;
         if(wa[i] < wr/1.8)
         {
             Pcu_a[i] = (Pa[i]/Pmax)*1.8*Pcu_r;
-            Pcore_a[i] = ((wa[i]/wr)*(wa[i]/wr)) * Peddy_r + wa[i]/wr*Phys_r;
+            Pcore_a[i] = (wa[i]/wr)*(wa[i]/wr) * Peddy_r + wa[i]/wr*Phys_r;
             Pmech_a[i] = wa[i]/wr * Pmech_r;
             Padd_a[i] = Padd_r;
         }
         else
         {
-            Pcu_a[i] = (Pa[i]/Pmax)*(Pa[i]/Pmax)*Pcu_r;
+            Pcu_a[i] = (Pa[i]/Pmax)*(Pa[i]/Pmax) * Pcu_r;
             Pcore_a[i] = Peddy_r + pow((wa[i]/wr),1.6) * Phys_r;
             Pmech_a[i] = wa[i]/wr*Pmech_r;
             Padd_a[i] = Padd_r;
         }
 
-        PlossIM_Total[i] =  i*(Pcu_a[i] + Pcore_a[i] + Pmech_a[i] + Padd_a[i]); //电机总损耗
+        PlossIM_Total[i] =  i * (Pcu_a[i] + Pcore_a[i] + Pmech_a[i] + Padd_a[i]); //电机总损耗
 
-        if(PlossIM_Total[i]<P_min)
+        if(PlossIM_Total[i] < P_min)
         {
             P_min = PlossIM_Total[i];
             num = i;
         }
     }
-
+//    Ploss = P_min;
+//    ActormotorNum = num;
     PlossIM_sun = P_min;
     Actmotor_num = num;
-    array[0] = PlossIM_sun;
-    array[1] = Actmotor_num;
 
-    return array;
+    array2[0] = PlossIM_sun;
+    array2[1] = Actmotor_num;
+    return array2;
 }
 
 float *Train::newPowerDistribution(float F, float v)
 {
-    float *array = new float[2];
+//    float *array = new float[2];
+    static float array[2];
     TractionPower = F*v;
     IMSpeed = v*3.6*1000*2.517/60/PI/0.85;
 
@@ -481,7 +522,7 @@ VectorXf Train::Cal_TrainResistance(VectorXf CurX)
     TrainCoM = TrainData_.col(0);
     TrainCoM(1) = TrainCoM(1)*0.5;
     VectorXf mid = cum_sum(TrainCoM);
-    cout << mid;
+    //cout << mid;
     VectorXf one = VectorXf::Ones(TrainCoM.col(0).size());
     float Wc;
     float Wg;
@@ -544,12 +585,8 @@ void Train::testmain()
     train_basic_info();
     Ramp_init();
     PID();
-    cout << Actmotornum_PUD;
-    //VectorXf vec = TrainData_.col(1);//vector为列向量
-    cout << TrainData_.col(1).size() <<endl;
-    //cout << vec;
-    //cout << TrainData_;
-    //return 1;
+    //cout << Actmotornum_PUD;
+    //cout << TrainData_.col(1).size() <<endl;
 
 }
 
