@@ -14,6 +14,12 @@
 #include <math.h>
 #include <QDir>
 
+#include <QObject>
+#include <QAxObject>
+#include <QString>
+#include <QStringList>
+#include <QVariant>
+
 #include<Eigen/Dense>          //尝试用c++的eigen库加快运行速度
 #include<Eigen/Geometry>
 #include <Eigen/Core>
@@ -36,6 +42,11 @@ public:
       bool readExcelData(QString& filename,MatrixXf& m);
       float Data(int row, int col);
 
+      void Var2Qlist(QVariant var,QList<QList<QVariant> > &qlist);
+      //void Var2Qvec(QVariant var,QVector<QVector<QVariant> > &qvec);
+
+      void testmain();
+
 public:
 //      int totalRow; //总行
 //      int totalCol; //总列
@@ -49,7 +60,12 @@ private:
       QAxObject* worksheet;                        //存储第n个sheet对象
       QAxObject* usedrange;                        //存储当前sheet的数据对象
 
+      QVariant qvar;
+
 private:
+      int totalrow = 0;
+      int totalcol = 0;
+
       int iRow;
       int iCol;
 

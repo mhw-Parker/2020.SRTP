@@ -1,5 +1,5 @@
 #include"readExcelData.h"
-
+//#include <QElapsedTimer>
 
 ExcelRead::ExcelRead()
 {
@@ -21,14 +21,17 @@ bool ExcelRead::datarange_init(QString &filename, int& totalRow, int& totalCol)
     workbook = workbooks->querySubObject("Open(const QString&)",filename);		//打开指定Excel
     worksheets = workbook->querySubObject("WorkSheets");            			//获取表页对象
     worksheet = worksheets->querySubObject("Item(int)",1);          			//获取第1个sheet表
-    usedrange =worksheet->querySubObject("Usedrange");							//获取权限
+    usedrange = worksheet->querySubObject("Usedrange");							//获取权限
 
-    iRow = usedrange->property("Row").toInt();             					//数据起始行数和列数(可以解决不规则Excel)
+    iRow = usedrange->property("Row").toInt();             					    //数据起始行数和列数(可以解决不规则Excel)
     iCol = usedrange->property("Column").toInt();
     //cout<<"start_row= "<<iRow<<"\t start_col="<<iCol<<endl;
-    totalRow = usedrange->querySubObject("Rows")->property("Count").toInt();  //获取数据总行数
+    totalRow = usedrange->querySubObject("Rows")->property("Count").toInt();    //获取数据总行数
     totalCol = usedrange->querySubObject("Columns")->property("Count").toInt();
     //
+    //qvar = usedrange->dynamicCall("Value");
+    qvar = usedrange->dynamicCall("Value2");
+    delete usedrange;
     return true;
 }
 
@@ -45,26 +48,60 @@ int ExcelRead::getRowRange(QString &filename)
 
 bool ExcelRead::readExcelData(QString& filename,MatrixXf& m)    //读了全表数据
 {
-    int row = 0;
-    int col = 0;
 
-    if(datarange_init(filename,row,col))
+    if(datarange_init(filename,totalrow,totalcol))
         cout<<"excel_init successed !"<<endl;
-    m = MatrixXf::Zero(row,col);
+    m = MatrixXf::Zero(totalrow,totalcol);
+    QList<QList<QVariant> > vec;
+//    QElapsedTimer timer;
+//    timer.start();
     QTime startTime = QTime::currentTime();
     // 逐行读取主表
-    for (int i = iRow+1; i <= row; i++)
+    Var2Qlist(qvar,vec);
+    for (int i = iRow+1; i <= totalrow; i++)
     {
-        for(int j = iCol; j <= col; j++)
+        for(int j = iCol; j <= totalcol; j++)
         {
-            m(i-1,j-1) = worksheet->querySubObject("Cells(int,int)",i,j)->dynamicCall(("Value2()")).value<float>();
+            //m(i-1,j-1) = worksheet->querySubObject("Cells(int,int)",i,j)->dynamicCall(("Value2()")).value<float>();
+            m(i-1,j-1) = vec[i-1][j-1].toFloat();
         }
 
     }
     QTime stopTime = QTime::currentTime();
     int elapsed = startTime.msecsTo(stopTime);
+    //qDebug()<<filename<<" data has been put in Matrix, it took: "<<timer.elapsed()<<"ms";
     qDebug()<<filename<<" data has been put in Matrix, it took: "<<elapsed<<"ms";
+    qvar.clear();
+//    vec.clear();
     //cout << m.rows()<<endl;
     return true;
 }
 
+void ExcelRead::Var2Qlist(QVariant var, QList<QList<QVariant> > &qlist)
+{
+    QVariantList varRows = var.toList();
+    const int rowCount = varRows.size();
+    QVariantList rowData;
+    for(int i=0;i<rowCount;++i)
+    {
+        rowData = varRows[i].toList();
+        qlist.push_back(rowData);
+    }
+}
+
+//void ExcelRead::Var2Qvec(QVariant var, QVector<QVector<QVariant> > &qvec)
+//{
+//    QVariantList varRows = var.toList();
+//    QVariantList rowData;
+//    for(int i=0;i<totalrow;i++)
+//    {
+//        //rowData = varRows[i].toFloat();
+//    }
+//}
+
+void ExcelRead::testmain()
+{
+   QString OptimalData_Path = QDir::currentPath() + "/3.xlsx";
+   MatrixXf mat;
+   readExcelData(OptimalData_Path,mat);
+}

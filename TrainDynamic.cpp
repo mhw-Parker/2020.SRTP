@@ -585,7 +585,9 @@ void Train::testmain()
     train_basic_info();
     Ramp_init();
     PID();
-    //cout << Actmotornum_PUD;
+    qDebug() << "投切损耗 = " << Energy_Cosum_PD_Total << "（KW*h）";
+    qDebug() << "无投切损耗 = " << Energy_Cosum_PUD_Total << "（KW*h）";
+
     //cout << TrainData_.col(1).size() <<endl;
 
 }
