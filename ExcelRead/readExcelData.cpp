@@ -9,6 +9,7 @@ ExcelRead::ExcelRead()
     worksheets = NULL;
     worksheet = NULL;
     usedrange = NULL;
+    //pWorkBooks = NULL;
 }
 
 bool ExcelRead::datarange_init(QString &filename, int& totalRow, int& totalCol)
@@ -32,6 +33,9 @@ bool ExcelRead::datarange_init(QString &filename, int& totalRow, int& totalCol)
     //qvar = usedrange->dynamicCall("Value");
     qvar = usedrange->dynamicCall("Value2");
     delete usedrange;
+    //pWorkBooks->dynamicCall("Close(Boolean)",false);
+    excel->dynamicCall("Quit(void)");
+    delete excel;
     return true;
 }
 

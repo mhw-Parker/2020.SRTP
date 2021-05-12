@@ -145,11 +145,10 @@ MainWindow::MainWindow(QWidget *parent) :
 {
   ui->setupUi(this);
   //setGeometry(400, 250, 542, 390);
-  setGeometry(400, 250, 1280, 500);
+  connect(ui->pushButton, SIGNAL(clicked()), this, SLOT(w_main()));
+//  setGeometry(400, 250, 1280, 900);
 
-  train.testmain();
-
-  setupDemo(21);
+  //setupDemo(9);
   //setupPlayground(ui->customPlot);
   // 0:  setupQuadraticDemo(ui->customPlot);
   // 1:  setupSimpleDemo(ui->customPlot);
@@ -205,6 +204,7 @@ void MainWindow::setupDemo(int demoIndex)
     case 20: setupPolarPlotDemo(ui->customPlot); break;
 
     case 21: ActorMotor(ui->customPlot);break;
+    case 22: SpeedTraction(ui->widget);break;
 
   }
   setWindowTitle("QCustomPlot: "+demoName);
@@ -213,14 +213,51 @@ void MainWindow::setupDemo(int demoIndex)
   ui->customPlot->replot();
 }
 
+void MainWindow::w_main()
+{
+    pathinit();
+    //train.filepath();
+    train.testmain();
+    showgraph();
+}
+
+void MainWindow::pathinit()
+{
+//    while(1){
+//        //Sleep(100);
+//        bool flag = ui->pushButton->isDown();
+//        if(flag){
+//            break;
+//        }
+//    }
+    Path_1 = ui->lineEdit1->text();
+    Path_2 = ui->lineEdit2->text();
+    Path_3 = ui->lineEdit3->text();
+    Path_4 = ui->lineEdit4->text();
+
+    train.filepath_in(Path_1,Path_2,Path_3,Path_4);
+}
+
+void MainWindow::showgraph()
+{
+    ActorMotor(ui->customPlot);
+    SpeedTraction(ui->widget);
+//    ui->widget_3->update();
+//    ui->widget->update();
+//    ui->customPlot->update();
+
+}
+
 void MainWindow::ActorMotor(QCustomPlot *customPlot)
 {
+    customPlot->clearGraphs();
+    qDebug() << "start drawing actormotornum graph !" ;
     QVector<double> x(train.Tmp_SoverNum), PD(train.Tmp_SoverNum), PUD(train.Tmp_SoverNum);
     for(int i=1;i<train.Tmp_SoverNum;i++)
     {
-        x[i] = train.Tmp_Step_X[i];
-        PD[i] = train.Actmotornum_PD[i];
-        PUD[i] = train.Actmotornum_PUD[i];
+        x[i] = train.Tmp_Step_X(i);
+        PD[i] = train.Actmotornum_PD(i);
+        PUD[i] = train.Actmotornum_PUD(i);
     }
     // graph 1
     customPlot->addGraph();
@@ -235,13 +272,50 @@ void MainWindow::ActorMotor(QCustomPlot *customPlot)
     customPlot->graph(1)->setData(x,PUD);
 
     // give the axes some labels:
-    customPlot->xAxis->setLabel("location");
+    customPlot->xAxis->setLabel("location (km/h)");
     customPlot->yAxis->setLabel("MotorNumber");
 
     // set axes ranges, so we see all data:
-    customPlot->xAxis->setRange(0, train.Tmp_Step_X[train.Tmp_SoverNum-1] + 2);
+    customPlot->xAxis->setRange(0, train.Tmp_Step_X(train.Tmp_SoverNum-5) + 2);
     customPlot->yAxis->setRange(0, 20);
+
+    customPlot->replot();
 }
+
+void MainWindow::SpeedTraction(QCustomPlot *widget)
+{
+    qDebug() << "start drawing tractionspeed graph !" ;
+    QVector<double> x(train.Tmp_SoverNum), v1(train.Tmp_SoverNum), v2(train.Tmp_SoverNum), p(train.Tmp_SoverNum);
+    for(int i=1;i<train.Tmp_SoverNum;i++)
+    {
+        x[i] = train.Tmp_Step_X(i);
+        v1[i] = train.Tmp_Step_V(i);
+        p[i] = train.ControlPos(i)/1000;
+        v2[i] = train.Controlspeed(i) * 3.6;
+    }
+    // graph 1
+    widget->addGraph();
+    widget->graph(0)->setPen(QPen(Qt::blue)); // line color blue for first graph
+    widget->graph(0)->setLineStyle(QCPGraph::lsLine);
+    widget->graph(0)->setData(x,v1);
+
+    // graph 2
+    widget->addGraph();
+    widget->graph(1)->setPen(QPen(Qt::red)); // line color red for second graph
+    widget->graph(1)->setLineStyle(QCPGraph::lsLine);
+    widget->graph(1)->setData(p,v2);
+
+    // give the axes some labels:
+    widget->xAxis->setLabel("location (km)");
+    widget->yAxis->setLabel("Speed (km/h)");
+
+    // set axes ranges, so we see all data:
+    widget->xAxis->setRange(0, train.Tmp_Step_X(train.Tmp_SoverNum-5) + 2);
+    widget->yAxis->setRange(0, 400);
+
+    widget->replot();
+}
+
 
 void MainWindow::setupQuadraticDemo(QCustomPlot *customPlot)
 {
@@ -1669,7 +1743,7 @@ void MainWindow::allScreenShots()
     dataTimer.disconnect();
     delete ui->customPlot;
     ui->customPlot = new QCustomPlot(ui->centralwidget);
-    ui->verticalLayout->addWidget(ui->customPlot);
+    //ui->verticalLayout->addWidget(ui->customPlot);
     setupDemo(currentDemoIndex+1);
     // setup delay for demos that need time to develop proper look:
     int delay = 250;
@@ -1683,4 +1757,3 @@ void MainWindow::allScreenShots()
     qApp->quit();
   }
 }
-

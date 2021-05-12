@@ -140,7 +140,16 @@ public:
 
   void setupPlayground(QCustomPlot *customPlot);
 
+  // path init
+  void pathinit();
+  //draw graph
+  void showgraph();
   void ActorMotor(QCustomPlot *customPlot);
+  void SpeedTraction(QCustomPlot *widget);
+
+public slots:
+  // main
+  void w_main();
 
 private slots:
   void realtimeDataSlot();
@@ -148,13 +157,20 @@ private slots:
   void screenShot();
   void allScreenShots();
 
+
 private:
   Ui::MainWindow *ui;
   QString demoName;
   QTimer dataTimer;
   QCPItemTracer *itemDemoPhaseTracer;
   int currentDemoIndex;
+
+private:
   Train train;
+  QString Path_1;
+  QString Path_2;
+  QString Path_3;
+  QString Path_4;
 };
 
 #endif // MAINWINDOW_H

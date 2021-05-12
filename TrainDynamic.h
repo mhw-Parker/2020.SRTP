@@ -3,6 +3,7 @@
 
 #include<iostream>
 #include<vector>
+#include <QByteArray>
 #include"ExcelRead/readExcelData.h"
 
 #define PI 3.14
@@ -13,6 +14,7 @@ public:
     Train();
 
     /*导入的excel文件名*/
+    void filepath_in(QString P1, QString P2, QString P3, QString P4);
     void filepath();
     bool data_init();
 
@@ -50,6 +52,10 @@ public:
     void Pra_clear();
 
     void testmain();
+
+    void savedata(VectorXf vec, QString filename);
+
+    void clear();
 
 
 public:

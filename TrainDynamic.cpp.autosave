@@ -444,7 +444,7 @@ float *Train::newPowerDistribution(float F, float v)
     TractionPower = F*v;
     IMSpeed = v*3.6*1000*2.517/60/PI/0.85;
 
-    for(int i=16;i>=0;i=i-2)
+    for(int i=16;i>=2;i=i-2)
     {
          Pa[i] = fabs(TractionPower/i);  //实际平均每个电机功率
 

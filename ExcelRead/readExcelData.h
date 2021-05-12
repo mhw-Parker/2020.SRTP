@@ -59,6 +59,7 @@ private:
       QAxObject* worksheets;                       //文件中所有<Sheet>表页
       QAxObject* worksheet;                        //存储第n个sheet对象
       QAxObject* usedrange;                        //存储当前sheet的数据对象
+      QAxObject* pWorkBooks;
 
       QVariant qvar;
 
